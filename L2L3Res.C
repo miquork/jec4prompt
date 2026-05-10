@@ -33,7 +33,11 @@ void L2L3Res(
     std::string jsonWithLumis_path_="",
     std::string runsDirectoriesBase_="",
     bool use_minimum_luminosity_=true,
-    double minimum_luminosity_=-1.
+    double minimum_luminosity_=-1.,
+    std::string l1_txtPath_ = "",
+    std::string l2_txtPath_ = "",
+    std::string l3abs_txtPath_ = "",
+    std::string outputJsonPath_ = ""
   ) 
   {
   // Don't display any graphics on the screen
@@ -71,6 +75,10 @@ void L2L3Res(
     return;
   }
   
+  std::string l1_txtPath = (l1_txtPath_ == "") ?  propertyTree.get<std::string>("global.l1_txtPath", "./offline_txts/dummy_txts/JEC_L1FastJet_Dummy.txt") : l1_txtPath_;
+  std::string l2_txtPath = (l2_txtPath_ == "") ?  propertyTree.get<std::string>("global.l2_txtPath", "./offline_txts/dummy_txts/JEC_L2Relative_Dummy.txt") : l2_txtPath_;
+  std::string l3abs_txtPath = (l3abs_txtPath_ == "") ?  propertyTree.get<std::string>("global.l3abs_txtPath", "./offline_txts/dummy_txts/JEC_L3Absolute_Dummy.txt") : l3abs_txtPath_;
+  std::string outputJsonPath = (outputJsonPath_ == "") ? propertyTree.get<std::string>("global.outputJsonPath", "./offline_txts/dummy_txts/JEC_L3Absolute_Dummy.txt") : outputJsonPath_;
 
   double jes_limitMin = propertyTree.get<double>("global.jes_limitMin", 0.82-0.20);
   double jes_limitMax = propertyTree.get<double>("global.jes_limitMax", 1.12+0.20);
@@ -866,7 +874,26 @@ void L2L3Res(
   // Close the text file and save the fit grid canvas
   out_file.close();
   std::cout << "Successfully generated corrections txt: " << txt_filename << std::endl;
-
+  
+  // Make corrections JSON file
+  try {
+    gROOT->ProcessLine(Form(".! python3 makeJECsJSON.py \
+    --l1 %s \
+    --l2 %s \
+    --l3abs %s \
+    --l2l3res %s \
+    --output jsons/%sRun%d_JECs.json", 
+    l1_txtPath.c_str(), l2_txtPath.c_str(), l3abs_txtPath.c_str(), txt_filename.c_str(), txtPrefix.c_str(), run));
+    
+    // keep the json but copy to the latest json directory ( a fixed directory where the latest correction is saved )
+    gROOT->ProcessLine(Form(".! cp jsons/%sRun%d_JECs.json %s/j4pjerc.json", txtPrefix.c_str(), run, outputJsonPath.c_str()));
+  
+  } catch (const std::exception& e) {
+      std::cerr << "Error creating json file: " << e.what() << std::endl;
+      return; 
+  }
+  std::cout << "Successfully generated corrections json file! : " << outputJsonPath << "/j4pjerc.json" << std::endl;
+  
 
   // --- Plot of chi2/ndf and its probability vs Eta ---
   // --- Chi2/ndf vs Eta ---
